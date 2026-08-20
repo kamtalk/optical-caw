@@ -47,6 +47,9 @@ To reproduce the benchmark simulations and phase-space topology:
 ```bash
 python run_catastrophe.py
 
+Citation
+If you use Optical-CAW in your research, please cite our paper:
+
 @article{menard2026helmholtz,
   title={Unifying Helmholtz Optics and Wigner--Moyal Mechanics},
   author={Menard, Kenneth A.},
