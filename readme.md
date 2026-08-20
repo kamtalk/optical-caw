@@ -13,7 +13,7 @@ Official Python implementation and reproducible benchmark suite for the paper:
 
 <p align="center">
   <!-- 🛑 Note: Upload your 3-panel image to your repo (e.g. as docs/phase_space_catastrophe.png) so it renders here -->
-  <img src="docs/phase_space_catastrophe.png" alt="Wigner Phase-Space Vortex Topology" width="900"/>
+  <img src="fig2_aberrated_caustic.png" alt="Wigner Phase-Space Vortex Topology" width="900"/>
   <br>
   <em><b>Exact Non-Paraxial Focal Catastrophe:</b> (a) Phase-space nodal lines and streamlines resolving exact Wigner vortex cores. (b) Core zoom showing closed 2$\pi$ phase-space circulation. (c) Corresponding real-space highly oscillatory focal intensity.</em>
 </p>
