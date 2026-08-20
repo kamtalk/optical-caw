@@ -38,3 +38,18 @@ Standard Beam Propagation Methods (BPM) rely on paraxial approximations that bre
 git clone https://github.com/kamtalk/optical-caw.git
 cd optical-caw
 pip install -r requirements.txt
+
+---
+
+## ⚡ Running the Benchmark
+
+To reproduce the benchmark simulations and phase-space topology:
+```bash
+python run_catastrophe.py
+
+@article{menard2026helmholtz,
+  title={Unifying Helmholtz Optics and Wigner--Moyal Mechanics},
+  author={Menard, Kenneth A.},
+  journal={Journal of the Optical Society of America A (Submitted)},
+  year={2026}
+}
