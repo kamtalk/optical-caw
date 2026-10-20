@@ -262,33 +262,122 @@ def run():
     dW_dx, dW_dkx = np.gradient(W_caw2, solver2.dx, solver2.dkx)
     Jx, Jkx = -dW_dkx, dW_dx
 
+    # The vertical plot coordinate is kx/k0. Scale the vertical vector
+    # component accordingly, then normalize arrows to show direction clearly.
+    U_phase = Jx
+    V_phase = Jkx / k0
+    speed_phase = np.hypot(U_phase, V_phase)
+    speed_safe = np.maximum(speed_phase, np.finfo(float).eps)
+    U_phase = U_phase / speed_safe
+    V_phase = V_phase / speed_safe
+
     fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(15, 4.4), layout='constrained')
-    im_a = ax1.pcolormesh(solver2.x, solver2.kx / k0, W_caw2.T, cmap='coolwarm', shading='auto', vmin=-0.08, vmax=0.25, rasterized=True)
-    ax1.contour(solver2.x, solver2.kx / k0, W_caw2.T, levels=[0.0], colors='black', linewidths=0.9)
-    ax1.quiver(solver2.X[::16, ::16], (solver2.KX / k0)[::16, ::16], Jx[::16, ::16].T, Jkx[::16, ::16].T, color='gray', alpha=0.6, scale=12.0, width=0.003)
-    ax1.set_title(r"(a) Phase Space: Nodal Lines ($W=0$) & Streamlines")
-    ax1.set_xlabel(r"Transverse Position $x$ [$\mu\mathrm{m}$]"); ax1.set_ylabel(r"$k_x / k_0$")
-    ax1.set_xlim(-14, 14); ax1.set_ylim(-1.4, 1.4)
+    im_a = ax1.pcolormesh(
+        solver2.x, solver2.kx / k0, W_caw2.T,
+        cmap='coolwarm', shading='auto', vmin=-0.08, vmax=0.25, rasterized=True
+    )
+    # Keep the actual W=0 contour, but use fine, translucent lines so dense
+    # outer nodal structure does not overwhelm the central phase-space pattern.
+    contour_band_a = np.abs(solver2.kx / k0) <= 0.32
+    ax1.contour(
+        solver2.x, (solver2.kx / k0)[contour_band_a],
+        W_caw2[:, contour_band_a].T, levels=[0.0],
+        colors='black', linewidths=0.30, alpha=0.48
+    )
+    significant_a = np.abs(W_caw2) >= 0.008
+    U_a = np.ma.masked_where(~significant_a, U_phase)
+    V_a = np.ma.masked_where(~significant_a, V_phase)
+    ax1.quiver(
+        solver2.X[::20, ::20], (solver2.KX / k0)[::20, ::20],
+        U_a[::20, ::20], V_a[::20, ::20],
+        color='gray', alpha=0.52, angles='xy', scale_units='xy',
+        scale=8.0, width=0.0025
+    )
+    ax1.set_title(r"(a) Phase Space: Central Nodal Lines ($W=0$) & Vectors")
+    ax1.set_xlabel(r"Transverse Position $x$ [$\mu\mathrm{m}$]")
+    ax1.set_ylabel(r"$k_x / k_0$")
+    ax1.set_xlim(-14, 14)
+    ax1.set_ylim(-1.4, 1.4)
     fig.colorbar(im_a, ax=ax1, label="Wigner Density")
 
-    im_b = ax2.pcolormesh(solver2.x, solver2.kx / k0, W_caw2.T, cmap='coolwarm', shading='auto', vmin=-0.08, vmax=0.25, rasterized=True)
-    ax2.contour(solver2.x, solver2.kx / k0, W_caw2.T, levels=[0.0], colors='black', linewidths=1.2)
+    im_b = ax2.pcolormesh(
+        solver2.x, solver2.kx / k0, W_caw2.T,
+        cmap='coolwarm', shading='auto', vmin=-0.08, vmax=0.25, rasterized=True
+    )
+    contour_band_b = np.abs(solver2.kx / k0) <= 0.17
+    ax2.contour(
+        solver2.x, (solver2.kx / k0)[contour_band_b],
+        W_caw2[:, contour_band_b].T, levels=[0.0],
+        colors='black', linewidths=0.52, alpha=0.65
+    )
     zoom_mask = (solver2.x >= -3.5) & (solver2.x <= 3.5)
     zoom_k = (solver2.kx / k0 >= -0.5) & (solver2.kx / k0 <= 0.5)
-    ax2.quiver(solver2.X[np.ix_(zoom_mask, zoom_k)][::6, ::6], (solver2.KX[np.ix_(zoom_mask, zoom_k)] / k0)[::6, ::6],
-               Jx[np.ix_(zoom_mask, zoom_k)][::6, ::6].T, Jkx[np.ix_(zoom_mask, zoom_k)][::6, ::6].T,
-               color='darkslategray', alpha=0.8, scale=5.0, width=0.005)
-    ax2.set_title(r"(b) Stream Circulation around Stagnation Node")
-    ax2.set_xlabel(r"Transverse Position $x$ [$\mu\mathrm{m}$]"); ax2.set_xlim(-3.5, 3.5); ax2.set_ylim(-0.5, 0.5)
+    X_zoom = solver2.X[np.ix_(zoom_mask, zoom_k)]
+    K_zoom = solver2.KX[np.ix_(zoom_mask, zoom_k)] / k0
+    W_zoom = W_caw2[np.ix_(zoom_mask, zoom_k)]
+    U_zoom = np.ma.masked_where(
+        np.abs(W_zoom) < 0.008, U_phase[np.ix_(zoom_mask, zoom_k)]
+    )
+    V_zoom = np.ma.masked_where(
+        np.abs(W_zoom) < 0.008, V_phase[np.ix_(zoom_mask, zoom_k)]
+    )
+    # Use a sparser, lighter vector field to keep the node legible. No transpose
+    # is applied: these arrays are already indexed as (x, kx), like X_zoom.
+    ax2.quiver(
+        X_zoom[::10, ::10], K_zoom[::10, ::10],
+        U_zoom[::10, ::10], V_zoom[::10, ::10],
+        color='darkslategray', alpha=0.72, angles='xy',
+        scale_units='xy', scale=10.0, width=0.0040
+    )
+    ax2.set_title(r"(b) Local Circulation near Stagnation Node")
+    ax2.set_xlabel(r"Transverse Position $x$ [$\mu\mathrm{m}$]")
+    ax2.set_xlim(-3.5, 3.5)
+    ax2.set_ylim(-0.5, 0.5)
 
-    ax3.plot(solver2.x, I_caw, color='crimson', lw=2.2, label="Optical CAW (Exact Pearcey)")
-    ax3.plot(solver2.x, I_moyal, color='royalblue', ls='--', lw=1.8, label=f"Truncated Moyal ({err_caustic_1d:.1f}% err)")
-    ax3.axvline(-x_geom_bound, color='black', ls=':', lw=1.5, label=f"Geometrical Bounds ($x_g = \\pm {x_geom_bound:.2f}\\,\\mu\\mathrm{{m}}$)")
-    ax3.axvline(+x_geom_bound, color='black', ls=':', lw=1.5)
-    ax3.set_title(r"(c) Focal Intensity $I(x)$ across Caustic")
-    ax3.set_xlabel(r"Transverse Position $x$ [$\mu\mathrm{m}$]"); ax3.set_ylabel(r"Intensity [arb. units]")
-    ax3.set_xlim(-14, 14); ax3.legend(loc='upper right', fontsize=8.0); ax3.grid(True, alpha=0.3)
-    plt.savefig("fig2_aberrated_caustic.png", dpi=300); plt.close()
+    # The vertical markers are mapped 1/e^2 waist bounds, not Jacobian-zero
+    # caustic points. Use x_geom consistently in the legend.
+    ax3.plot(solver2.x, I_caw, color='crimson', lw=2.2, label="Optical CAW")
+    ax3.plot(
+        solver2.x, I_moyal, color='royalblue', ls='--', lw=1.8,
+        label=f"Truncated Moyal ({err_caustic_1d:.2f}% $L_2$ error)"
+    )
+    bound_label = (
+        r"Mapped $1/e^2$ bounds "
+        + rf"($x_{{\mathrm{{geom}}}}=\pm {x_geom_bound:.2f}\,\mu\mathrm{{m}}$)"
+    )
+    ax3.axvline(-x_geom_bound, color='black', ls=':', lw=1.35, label=bound_label)
+    ax3.axvline(+x_geom_bound, color='black', ls=':', lw=1.35)
+    ax3.set_title(r"(c) Focal Intensity and Moyal Residual")
+    ax3.set_xlabel(r"Transverse Position $x$ [$\mu\mathrm{m}$]")
+    ax3.set_ylabel(r"Intensity [arb. units]")
+    ax3.set_xlim(-14, 14)
+    ax3.grid(True, alpha=0.3)
+    ax3.legend(loc='upper right', fontsize=7.3, framealpha=0.92)
+
+    # Residual inset highlights curve differences without changing the main
+    # intensity scale. It is normalized to the CAW peak, not pointwise I(x).
+    # Lower-left placement avoids colliding with the upper-right legend.
+    ax3ins = inset_axes(ax3, width="44%", height="33%", loc="lower left", borderpad=1.0)
+    peak_intensity = max(float(np.max(np.abs(I_caw))), np.finfo(float).eps)
+    residual_pct = 100.0 * (I_moyal - I_caw) / peak_intensity
+    ax3ins.plot(solver2.x, residual_pct, color='navy', lw=1.0)
+    ax3ins.axhline(0.0, color='black', ls=':', lw=0.7)
+    # Re-mark the same mapped waist bounds in the residual inset so that the
+    # insets do not visually interrupt their spatial locations.
+    ax3ins.axvline(-x_geom_bound, color='black', ls=':', lw=0.8, alpha=0.8)
+    ax3ins.axvline(+x_geom_bound, color='black', ls=':', lw=0.8, alpha=0.8)
+    ax3ins.set_xlim(-10.0, 10.0)
+    residual_window = residual_pct[np.abs(solver2.x) <= 10.0]
+    residual_limit = max(0.05, 1.12 * float(np.max(np.abs(residual_window))))
+    ax3ins.set_ylim(-residual_limit, residual_limit)
+    ax3ins.set_title("Residual (% of CAW peak)", fontsize=7.0, pad=2)
+    ax3ins.set_xlabel(r"$x$ [$\mu$m]", fontsize=6.5, labelpad=0)
+    # Omit a separate inset y-label to avoid colliding with the parent axis label.
+    ax3ins.tick_params(axis='both', labelsize=6.0, length=2)
+    ax3ins.grid(True, alpha=0.2)
+
+    plt.savefig("fig2_aberrated_caustic.png", dpi=300)
+    plt.close()
     print("  -> Saved 'fig2_aberrated_caustic.png'")
 
     # =========================================================================
