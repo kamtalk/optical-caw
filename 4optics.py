@@ -148,7 +148,9 @@ def run():
         W_bpm = solver1.step(W_bpm)
 
     # 2. Distance sweep for Panel (d)
-    z_sweep = np.linspace(0.0, 50.0 * wavelength, 60)
+    # Using 51 points ensures z = 12.0 is exactly in the array (steps of 1.0)
+    z_sweep = np.linspace(0.0, 50.0 * wavelength, 51)
+    
     mask_act = np.abs(solver1.KX_grid) <= 0.92 * k0
     denom = np.maximum(1e-6, k0**2 - solver1.KX_grid**2)
     kz_prime = np.zeros_like(solver1.KX_grid)
@@ -159,24 +161,25 @@ def run():
 
     errs_bpm, errs_moyal = [], []
     for z_val in z_sweep:
-        if z_val == 0.0:
-            errs_bpm.append(0.0)
-            errs_moyal.append(0.0)
-            continue
+        # Exact reference at distance z_val
         W_ref = np.real(np.fft.ifft(W0_xi * np.exp(+1j * z_val * Delta_kz), axis=0))
         ref_norm = np.linalg.norm(W_ref)
 
+        # Paraxial BPM at distance z_val
         W_b = np.real(np.fft.ifft(W0_xi * np.exp(+1j * z_val * (- (solver1.KX_grid * solver1.XI) / k0)), axis=0))
         errs_bpm.append(np.linalg.norm(W_b - W_ref) / ref_norm * 100.0)
 
+        # Truncated Moyal (spectral exponential) at distance z_val
         W_m_xi = W0_xi * np.exp(+1j * z_val * omega_moyal)
-        W_m_xi[~mask_act] = 0.0
+        W_m_xi[~mask_act] = 0.0  # Honestly apply the spectral restriction at all z
         W_m = np.real(np.fft.ifft(W_m_xi, axis=0))
         errs_moyal.append(np.linalg.norm(W_m - W_ref) / ref_norm * 100.0)
 
     errs_bpm = np.array(errs_bpm)
     errs_moyal = np.array(errs_moyal)
-    idx_12 = np.argmin(np.abs(z_sweep - z_benchmark))
+    
+    # Extract exact indices for reporting
+    idx_12 = np.where(np.abs(z_sweep - z_benchmark) < 1e-6)[0][0]
 
     print(f"  At z = 12 lambda: Paraxial BPM Error    = {errs_bpm[idx_12]:.2f}%")
     print(f"  At z = 12 lambda: Truncated Moyal Error = {errs_moyal[idx_12]:.2f}%")
